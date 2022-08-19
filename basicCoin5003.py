@@ -4,7 +4,7 @@ import datetime
 import hashlib
 import json
 import flask
-from flask import Flask,jsonify
+from flask import Flask,jsonify,request
 import requests
 from uuid import uuid4
 from urllib.parse import urlparse
@@ -81,9 +81,9 @@ class Blockchain:
         network=self.nodes
         for node in network:
             response=requests.get(f'http://{node}/get_chain')
-            if response.staus_code==200:
-                length=response.json['length']
-                chain=response.json['chain']
+            if response.status_code==200:
+                length=response.json()['length']
+                chain=response.json()['chain']
                 if length>maxlength and self.is_chain_valid(chain):
                     maxlength=length
                     longestchain=chain
@@ -109,13 +109,13 @@ def mine_block():
     prev_proof=prev_block['proof']
     proof=blockchain1.proof_of_work(prev_proof)
     prev_hash=blockchain1.hash(prev_block)
-    blockchain1.add_transaction( node_address,'ronmaa' ,10)
+    blockchain1.add_transaction( node_address,'maanu' ,10)
     block=blockchain1.create_block(proof, prev_hash)
     respone={'message':'Congratulations you have just mined a new block',
              'index':block['index'],
              'timestamp':block['timestamp'],
              'proof':block['proof'],
-             'transactions':block.transactions,
+             'transactions':block['transactions'],
              'prev_hash':block['prev_hash']}
     return jsonify(respone) , 200
 
@@ -137,7 +137,7 @@ def check_chain():
 
 @app.route('/add_transaction', methods=['POST'])
 def add_transaction():
-    json=requests.get_json()
+    json=request.get_json(force=True, silent=True, cache=False)
     transaction_keys=['sender','reciever','amount']
     if not all (key in json for key in transaction_keys):
         return 'One or more fields in transaction is missing' , 400
@@ -148,12 +148,12 @@ def add_transaction():
 #decentralizing the blockchain
 @app.route('/connect_node', methods=['POST'])
 def add_node():
-    json=requests.get_json()
-    nodes=json['nodes']
+    json=request.get_json(force=True, silent=True, cache=False)
+    nodes=json.get('nodes')
     if nodes is None:
         return 'No nodes  to add', 400
     for node in nodes:
-        blockchain1.addnode(node)
+        blockchain1.add_node(node)
     response={'message':'Successfully added the nodes.The blockchain now contains the following nodes:',
               'total_nodes':list(blockchain1.nodes)}
     return jsonify(response),201
@@ -169,4 +169,4 @@ def replace_chain():
         response={'message':'The blockchain is already the largest.No need to replace'}
     return jsonify(response) , 200
 
-app.run(host='127.0.0.1',port=5000)
+app.run(host='127.0.0.1',port=5003)
