@@ -96,6 +96,9 @@ class Blockchain:
 app = Flask(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 
+#create the node from which coins will be sent to miners
+node_address = str(uuid4()).replace('-','')
+
 #create blockchain
 blockchain1 = Blockchain()
 
@@ -106,11 +109,13 @@ def mine_block():
     prev_proof=prev_block['proof']
     proof=blockchain1.proof_of_work(prev_proof)
     prev_hash=blockchain1.hash(prev_block)
+    blockchain1.add_transaction( node_address,'ronmaa' ,10)
     block=blockchain1.create_block(proof, prev_hash)
     respone={'message':'Congratulations you have just mined a new block',
              'index':block['index'],
              'timestamp':block['timestamp'],
              'proof':block['proof'],
+             'transactions':block.transactions,
              'prev_hash':block['prev_hash']}
     return jsonify(respone) , 200
 
@@ -129,3 +134,13 @@ def check_chain():
     else:
         response={'message':'The blockchain is not valid'}
     return jsonify(response) , 200
+
+@app.route('/add_transaction', methods=['POST'])
+def add_transaction():
+    json=requests.get_json()
+    transaction_keys=['sender','reciever','amount']
+    if not all (key in json for key in transaction_keys):
+        return 'One or more fields in transaction is missing' , 400
+    index=blockchain1.add_transaction(json['sender'], json['reciever'], json['amount'])
+    response={'message':f'The transaction will be added in block {index}'}
+    return jsonify(response),201
